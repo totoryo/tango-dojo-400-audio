@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>単語道場 400|聞き流し音声解説</title>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#FBF8F1; --card:#FFFFFF; --ink:#2A3350; --ink-soft:#6B7390;
+  --red:#E2472F; --red-soft:#FBE3DE; --blue:#2E62C4; --blue-soft:#E2EAFA;
+  --green:#2E9E63; --green-soft:#DDF2E6; --marker:#FFE066;
+  --line:#E7E1D3; --radius:18px; --shadow:0 4px 14px rgba(42,51,80,.10);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{
+  font-family:'Zen Maru Gothic','Hiragino Maru Gothic ProN','BIZ UDGothic',sans-serif;
+  background:var(--paper);
+  background-image:repeating-linear-gradient(transparent 0 27px, rgba(226,71,47,.055) 27px 28px);
+  color:var(--ink); min-height:100vh; display:flex; justify-content:center;
+}
+.app{width:100%;max-width:520px;padding:16px 16px 40px;display:flex;flex-direction:column;gap:14px}
+header{display:flex;align-items:baseline;gap:8px}
+header h1{font-size:22px;font-weight:900}
+header h1 .red{color:var(--red)}
+header .sub{font-size:11px;color:var(--ink-soft);font-weight:700}
+
+.label{font-size:12px;font-weight:700;color:var(--ink-soft);letter-spacing:.08em;margin-bottom:6px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:2px solid var(--line);background:var(--card);color:var(--ink-soft);
+  font-family:inherit;font-weight:700;font-size:13px;padding:8px 13px;border-radius:99px;cursor:pointer;transition:.15s}
+.chip.on{border-color:var(--ink);background:var(--ink);color:#fff}
+.chip:active{transform:scale(.95)}
+
+/* 再生カード */
+.player{background:var(--card);border:2px solid var(--ink);border-radius:var(--radius);box-shadow:var(--shadow);
+  padding:26px 20px 20px;text-align:center;position:relative;overflow:hidden}
+.player::before{content:"";position:absolute;top:14px;left:14px;width:20px;height:20px;border-radius:50%;
+  background:var(--paper);border:3px solid #C9C2B2;box-shadow:inset 0 1px 2px rgba(0,0,0,.15)}
+.pnum{position:absolute;top:16px;right:18px;font-size:12px;font-weight:900;color:var(--ink-soft)}
+.pword{font-size:min(11vw,42px);font-weight:900;line-height:1.15;min-height:1.2em;word-break:break-word}
+.pjp{font-size:min(6vw,22px);font-weight:900;color:var(--red);min-height:1.4em;margin-top:6px}
+.pjp.hidden-mean{color:transparent;text-shadow:0 0 14px rgba(226,71,47,.55)}
+.speaking-dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--green);margin-left:8px;
+  vertical-align:middle;opacity:0;transition:.2s}
+.speaking .speaking-dot{opacity:1;animation:blink 1s infinite}
+@keyframes blink{50%{opacity:.25}}
+.pprog{height:8px;background:#EFEAE0;border-radius:99px;overflow:hidden;margin-top:18px}
+.pprog>i{display:block;height:100%;width:0%;background:linear-gradient(90deg,var(--blue),#6FA0F0);transition:width .3s}
+.pcount{font-size:12px;font-weight:900;color:var(--ink-soft);margin-top:6px}
+
+/* コントロール */
+.ctrl{display:flex;justify-content:center;align-items:center;gap:14px;margin-top:4px}
+.cbtn{font-family:inherit;border:2px solid var(--ink);background:var(--card);color:var(--ink);
+  font-size:20px;font-weight:900;width:56px;height:56px;border-radius:50%;cursor:pointer;box-shadow:var(--shadow);transition:.12s}
+.cbtn.main{width:76px;height:76px;font-size:28px;background:var(--ink);color:#fff}
+.cbtn:active{transform:scale(.92)}
+.cbtn:disabled{opacity:.4}
+
+.setrow{display:flex;gap:8px;flex-wrap:wrap}
+.setbox{flex:1;min-width:140px;background:var(--card);border:2px solid var(--line);border-radius:14px;padding:10px 12px}
+.setbox .label{margin-bottom:4px}
+select,input[type=range]{width:100%;font-family:inherit;font-weight:700;font-size:14px;color:var(--ink)}
+select{border:none;background:none;outline:none;padding:2px 0}
+.note{font-size:11px;font-weight:700;color:var(--ink-soft);line-height:1.7;background:var(--marker);
+  border-radius:12px;padding:10px 14px}
+.note b{color:var(--red)}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>単語<span class="red">道場</span> 🎧</h1>
+    <span class="sub">聞き流し音声解説 400語</span>
+  </header>
+
+  <div>
+    <div class="label">出題範囲</div>
+    <div class="chips" id="rangeChips"></div>
+  </div>
+
+  <div class="player" id="player">
+    <div class="pnum" id="pNum">No.–</div>
+    <div class="pword" id="pWord">▶ を押してスタート<span class="speaking-dot"></span></div>
+    <div class="pjp" id="pJp">英語 → 日本語の順に読み上げます</div>
+    <div class="pprog"><i id="pBar"></i></div>
+    <div class="pcount" id="pCount">– / –</div>
+  </div>
+
+  <div class="ctrl">
+    <button class="cbtn" id="prevBtn" title="前の単語">⏮</button>
+    <button class="cbtn main" id="playBtn" title="再生 / 一時停止">▶</button>
+    <button class="cbtn" id="nextBtn" title="次の単語">⏭</button>
+  </div>
+
+  <div class="setrow">
+    <div class="setbox">
+      <div class="label">読み上げパターン</div>
+      <select id="pattern">
+        <option value="e2j">英語 ×2 → 日本語(標準)</option>
+        <option value="ej">英語 → 日本語(はやい)</option>
+        <option value="e_j">英語 → <考える時間> → 日本語(テスト)</option>
+        <option value="j_e">日本語 → <考える時間> → 英語(和文英訳)</option>
+      </select>
+    </div>
+    <div class="setbox">
+      <div class="label">順番</div>
+      <select id="order">
+        <option value="seq">番号順</option>
+        <option value="shuf">シャッフル</option>
+      </select>
+    </div>
+  </div>
+  <div class="setrow">
+    <div class="setbox">
+      <div class="label">スピード <span id="rateLabel">1.0</span>倍</div>
+      <input type="range" id="rate" min="0.6" max="1.4" step="0.1" value="1.0">
+    </div>
+    <div class="setbox">
+      <div class="label">くり返し</div>
+      <select id="loop">
+        <option value="0">1周で終了</option>
+        <option value="1">ずっとループ</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="note">
+    📱 <b>iPhoneの人へ:</b> 本体横のマナーモードスイッチを<b>オフ(オレンジが見えない状態)</b>にして音量を上げてね。ファイルから開いて動かないときは、共有ボタン→<b>「Safariで開く」</b>で開くと動くよ。
+    「テスト」パターンは音声のあとに考える時間があるから、<b>声に出して答える</b>と最強に覚えられるよ!
+  </div>
+</div>
+
+<script>
+const WORDS = [{"n": 1, "en": "believe", "jp": "を信じる"}, {"n": 2, "en": "consider", "jp": "をよく考える"}, {"n": 3, "en": "expect", "jp": "を予期する"}, {"n": 4, "en": "decide", "jp": "を決める"}, {"n": 5, "en": "allow", "jp": "を許す"}, {"n": 6, "en": "remember", "jp": "を覚えている"}, {"n": 7, "en": "worry", "jp": "心配する"}, {"n": 8, "en": "concern", "jp": "に関係する;心配"}, {"n": 9, "en": "suggest", "jp": "を提案する"}, {"n": 10, "en": "explain", "jp": "を説明する"}, {"n": 11, "en": "describe", "jp": "を描写する"}, {"n": 12, "en": "improve", "jp": "を改善する"}, {"n": 13, "en": "produce", "jp": "を生産する"}, {"n": 14, "en": "provide", "jp": "を提供する"}, {"n": 15, "en": "increase", "jp": "増える;増やす"}, {"n": 16, "en": "create", "jp": "を創造する"}, {"n": 17, "en": "grow up / grow", "jp": "成長する;育つ"}, {"n": 18, "en": "develop", "jp": "を発達させる"}, {"n": 19, "en": "rise", "jp": "上がる"}, {"n": 20, "en": "raise", "jp": "を上げる;育てる"}, {"n": 21, "en": "follow", "jp": "について行く"}, {"n": 22, "en": "require", "jp": "を必要とする"}, {"n": 23, "en": "fill", "jp": "を満たす"}, {"n": 24, "en": "support", "jp": "を支える"}, {"n": 25, "en": "share", "jp": "を共有する"}, {"n": 26, "en": "face", "jp": "に直面する"}, {"n": 27, "en": "touch", "jp": "に触れる"}, {"n": 28, "en": "store", "jp": "を蓄える;店"}, {"n": 29, "en": "pay", "jp": "を支払う"}, {"n": 30, "en": "deal", "jp": "を扱う"}, {"n": 31, "en": "save", "jp": "を救う;蓄える"}, {"n": 32, "en": "happen", "jp": "起こる"}, {"n": 33, "en": "occur", "jp": "起こる"}, {"n": 34, "en": "work", "jp": "働く;機能する"}, {"n": 35, "en": "change", "jp": "を変える;変わる"}, {"n": 36, "en": "run", "jp": "走る;を経営する"}, {"n": 37, "en": "turn", "jp": "曲がる;を回す"}, {"n": 38, "en": "return", "jp": "戻る"}, {"n": 39, "en": "stand", "jp": "立つ;我慢する"}, {"n": 40, "en": "lie", "jp": "横たわる;嘘をつく"}, {"n": 41, "en": "brain", "jp": "脳"}, {"n": 42, "en": "mind", "jp": "心;精神"}, {"n": 43, "en": "language", "jp": "言語"}, {"n": 44, "en": "thought", "jp": "考え"}, {"n": 45, "en": "knowledge", "jp": "知識"}, {"n": 46, "en": "skill", "jp": "技能"}, {"n": 47, "en": "technology", "jp": "科学技術"}, {"n": 48, "en": "culture", "jp": "文化"}, {"n": 49, "en": "experience", "jp": "経験"}, {"n": 50, "en": "result", "jp": "結果"}, {"n": 51, "en": "reason", "jp": "理由"}, {"n": 52, "en": "cause", "jp": "原因"}, {"n": 53, "en": "effect", "jp": "影響;効果"}, {"n": 54, "en": "matter", "jp": "問題;事柄"}, {"n": 55, "en": "sense", "jp": "感覚"}, {"n": 56, "en": "way", "jp": "方法;道"}, {"n": 57, "en": "term", "jp": "期間;用語"}, {"n": 58, "en": "situation", "jp": "状況"}, {"n": 59, "en": "condition", "jp": "状態;条件"}, {"n": 60, "en": "position", "jp": "位置;立場"}, {"n": 61, "en": "environment", "jp": "環境"}, {"n": 62, "en": "nature", "jp": "自然;性質"}, {"n": 63, "en": "research", "jp": "研究"}, {"n": 64, "en": "rule", "jp": "規則"}, {"n": 65, "en": "interest", "jp": "興味;利子"}, {"n": 66, "en": "value", "jp": "価値"}, {"n": 67, "en": "view", "jp": "眺め;見解"}, {"n": 68, "en": "sound", "jp": "音"}, {"n": 69, "en": "form", "jp": "形;形式"}, {"n": 70, "en": "case", "jp": "場合;事例"}, {"n": 71, "en": "role", "jp": "役割"}, {"n": 72, "en": "age", "jp": "年齢;時代"}, {"n": 73, "en": "care", "jp": "世話;注意"}, {"n": 74, "en": "risk", "jp": "危険"}, {"n": 75, "en": "human", "jp": "人間(の)"}, {"n": 76, "en": "free", "jp": "自由な;無料の"}, {"n": 77, "en": "sure", "jp": "確信して"}, {"n": 78, "en": "certain", "jp": "確実な;ある〜"}, {"n": 79, "en": "main", "jp": "主な"}, {"n": 80, "en": "major", "jp": "主要な"}, {"n": 81, "en": "minor", "jp": "小さいほうの"}, {"n": 82, "en": "clear", "jp": "明らかな"}, {"n": 83, "en": "likely", "jp": "ありそうな"}, {"n": 84, "en": "possible", "jp": "可能な"}, {"n": 85, "en": "similar", "jp": "似ている"}, {"n": 86, "en": "close", "jp": "近い;閉める"}, {"n": 87, "en": "common", "jp": "共通の;普通の"}, {"n": 88, "en": "general", "jp": "一般的な"}, {"n": 89, "en": "ordinary", "jp": "普通の"}, {"n": 90, "en": "specific", "jp": "特定の;具体的な"}, {"n": 91, "en": "particular", "jp": "特定の"}, {"n": 92, "en": "individuality", "jp": "個性"}, {"n": 93, "en": "unique", "jp": "独特の"}, {"n": 94, "en": "rare", "jp": "まれな"}, {"n": 95, "en": "therefore", "jp": "それゆえに"}, {"n": 96, "en": "thus", "jp": "このように"}, {"n": 97, "en": "moreover", "jp": "さらに"}, {"n": 98, "en": "furthermore", "jp": "さらに"}, {"n": 99, "en": "besides", "jp": "その上"}, {"n": 100, "en": "nonetheless", "jp": "それにもかかわらず"}, {"n": 101, "en": "notice", "jp": "に気づく"}, {"n": 102, "en": "note", "jp": "に注目する;メモ"}, {"n": 103, "en": "discover", "jp": "を発見する"}, {"n": 104, "en": "realize", "jp": "に気づく;実現する"}, {"n": 105, "en": "recognize", "jp": "を認識する"}, {"n": 106, "en": "encourage", "jp": "を励ます"}, {"n": 107, "en": "force", "jp": "に強制する;力"}, {"n": 108, "en": "order", "jp": "を命じる;注文"}, {"n": 109, "en": "affect", "jp": "に影響を与える"}, {"n": 110, "en": "offer", "jp": "を提供する;申し出"}, {"n": 111, "en": "demand", "jp": "を要求する"}, {"n": 112, "en": "argue", "jp": "と主張;議論する"}, {"n": 113, "en": "claim", "jp": "と主張する"}, {"n": 114, "en": "object", "jp": "反対する;物"}, {"n": 115, "en": "challenge", "jp": "課題;に挑む"}, {"n": 116, "en": "involve", "jp": "を含む;巻き込む"}, {"n": 117, "en": "include", "jp": "を含む"}, {"n": 118, "en": "contain", "jp": "を含む"}, {"n": 119, "en": "relate", "jp": "を関連づける"}, {"n": 120, "en": "connect", "jp": "をつなぐ"}, {"n": 121, "en": "refer", "jp": "言及する"}, {"n": 122, "en": "contact", "jp": "に連絡する"}, {"n": 123, "en": "compare", "jp": "を比較する"}, {"n": 124, "en": "measure", "jp": "を測る"}, {"n": 125, "en": "mark", "jp": "に印をつける"}, {"n": 126, "en": "approach", "jp": "に近づく;取り組み"}, {"n": 127, "en": "reach", "jp": "に到着する"}, {"n": 128, "en": "achieve", "jp": "を達成する"}, {"n": 129, "en": "receive", "jp": "を受け取る"}, {"n": 130, "en": "complete", "jp": "を完成させる"}, {"n": 131, "en": "lead", "jp": "を導く"}, {"n": 132, "en": "win", "jp": "に勝つ"}, {"n": 133, "en": "lose", "jp": "を失う;負ける"}, {"n": 134, "en": "fail", "jp": "失敗する"}, {"n": 135, "en": "miss", "jp": "をし損なう"}, {"n": 136, "en": "lack", "jp": "を欠く;不足"}, {"n": 137, "en": "reduce", "jp": "を減らす"}, {"n": 138, "en": "avoid", "jp": "を避ける"}, {"n": 139, "en": "limit", "jp": "を制限する;限界"}, {"n": 140, "en": "prevent", "jp": "を妨げる;防ぐ"}, {"n": 141, "en": "wear", "jp": "を身につけている"}, {"n": 142, "en": "bear", "jp": "に耐える;を産む"}, {"n": 143, "en": "focus", "jp": "集中する;焦点"}, {"n": 144, "en": "author", "jp": "著者"}, {"n": 145, "en": "professor", "jp": "教授"}, {"n": 146, "en": "sentence", "jp": "文"}, {"n": 147, "en": "message", "jp": "伝言"}, {"n": 148, "en": "passage", "jp": "一節;文章"}, {"n": 149, "en": "statement", "jp": "声明;発言"}, {"n": 150, "en": "topic", "jp": "話題"}, {"n": 151, "en": "article", "jp": "記事"}, {"n": 152, "en": "issue", "jp": "問題;発行"}, {"n": 153, "en": "theory", "jp": "理論"}, {"n": 154, "en": "evidence", "jp": "証拠"}, {"n": 155, "en": "experiment", "jp": "実験"}, {"n": 156, "en": "subject", "jp": "主題;科目"}, {"n": 157, "en": "government", "jp": "政府"}, {"n": 158, "en": "policy", "jp": "政策"}, {"n": 159, "en": "education", "jp": "教育"}, {"n": 160, "en": "company", "jp": "会社"}, {"n": 161, "en": "colleague", "jp": "同僚"}, {"n": 162, "en": "industry", "jp": "産業"}, {"n": 163, "en": "trade", "jp": "貿易"}, {"n": 164, "en": "economy", "jp": "経済"}, {"n": 165, "en": "customer", "jp": "顧客"}, {"n": 166, "en": "benefit", "jp": "利益"}, {"n": 167, "en": "figure", "jp": "数字;図"}, {"n": 168, "en": "rate", "jp": "割合"}, {"n": 169, "en": "chance", "jp": "機会;可能性"}, {"n": 170, "en": "opportunity", "jp": "機会"}, {"n": 171, "en": "project", "jp": "計画"}, {"n": 172, "en": "practice", "jp": "練習;実践"}, {"n": 173, "en": "effort", "jp": "努力"}, {"n": 174, "en": "quality", "jp": "質"}, {"n": 175, "en": "quantity", "jp": "量"}, {"n": 176, "en": "amount", "jp": "量;総額"}, {"n": 177, "en": "scientific", "jp": "科学的な"}, {"n": 178, "en": "politics", "jp": "政治"}, {"n": 179, "en": "social", "jp": "社会の"}, {"n": 180, "en": "official", "jp": "公式の;役人"}, {"n": 181, "en": "financial", "jp": "財政の"}, {"n": 182, "en": "expensive", "jp": "高価な"}, {"n": 183, "en": "various", "jp": "さまざまな"}, {"n": 184, "en": "normal", "jp": "普通の"}, {"n": 185, "en": "familiar", "jp": "よく知られた"}, {"n": 186, "en": "appropriate", "jp": "適切な"}, {"n": 187, "en": "necessary", "jp": "必要な"}, {"n": 188, "en": "correct", "jp": "正しい"}, {"n": 189, "en": "available", "jp": "利用できる"}, {"n": 190, "en": "typical", "jp": "典型的な"}, {"n": 191, "en": "positive", "jp": "肯定的な"}, {"n": 192, "en": "negative", "jp": "否定的な"}, {"n": 193, "en": "passive", "jp": "受動的な"}, {"n": 194, "en": "physical", "jp": "身体の;物理的な"}, {"n": 195, "en": "mental", "jp": "精神の"}, {"n": 196, "en": "rather", "jp": "むしろ"}, {"n": 197, "en": "instead", "jp": "代わりに"}, {"n": 198, "en": "otherwise", "jp": "さもなければ"}, {"n": 199, "en": "somehow", "jp": "どういうわけか"}, {"n": 200, "en": "somewhat", "jp": "いくぶん"}, {"n": 201, "en": "wonder", "jp": "…だろうかと思う"}, {"n": 202, "en": "suppose", "jp": "(たぶん)…だと思う"}, {"n": 203, "en": "imagine", "jp": "を想像する"}, {"n": 204, "en": "regard", "jp": "を〜と見なす"}, {"n": 205, "en": "wish", "jp": "…ならいいのにと思う"}, {"n": 206, "en": "determine", "jp": "を決定する"}, {"n": 207, "en": "express", "jp": "を表現する"}, {"n": 208, "en": "represent", "jp": "を代表する"}, {"n": 209, "en": "identify", "jp": "を特定する"}, {"n": 210, "en": "mention", "jp": "に言及する"}, {"n": 211, "en": "solve", "jp": "を解決する"}, {"n": 212, "en": "prove", "jp": "を証明する"}, {"n": 213, "en": "communicate", "jp": "と意思を通じ合う"}, {"n": 214, "en": "respect", "jp": "を尊敬する"}, {"n": 215, "en": "prefer", "jp": "のほうを好む"}, {"n": 216, "en": "design", "jp": "を設計する"}, {"n": 217, "en": "establish", "jp": "を設立する"}, {"n": 218, "en": "found", "jp": "を設立する"}, {"n": 219, "en": "publish", "jp": "を出版する"}, {"n": 220, "en": "serve", "jp": "の役に立つ;奉仕する"}, {"n": 221, "en": "supply", "jp": "を供給する"}, {"n": 222, "en": "apply", "jp": "〜に申し込む"}, {"n": 223, "en": "treat", "jp": "を扱う;治療する"}, {"n": 224, "en": "search", "jp": "を検索する;探す"}, {"n": 225, "en": "prepare", "jp": "〜のために準備する"}, {"n": 226, "en": "protect", "jp": "を〜から保護する"}, {"n": 227, "en": "pick", "jp": "を選び取る;摘む"}, {"n": 228, "en": "fit", "jp": "にぴったり合う"}, {"n": 229, "en": "gain", "jp": "を手に入れる"}, {"n": 230, "en": "enter", "jp": "に入る"}, {"n": 231, "en": "spread", "jp": "広がる"}, {"n": 232, "en": "advance", "jp": "前進する"}, {"n": 233, "en": "tend", "jp": "…する傾向がある"}, {"n": 234, "en": "depend", "jp": "依存する;頼る"}, {"n": 235, "en": "exist", "jp": "存在する"}, {"n": 236, "en": "decline", "jp": "減る;衰える"}, {"n": 237, "en": "decrease", "jp": "減る;減らす"}, {"n": 238, "en": "waste", "jp": "を浪費する"}, {"n": 239, "en": "damage", "jp": "に損害を与える"}, {"n": 240, "en": "suffer", "jp": "〜で苦しむ"}, {"n": 241, "en": "act", "jp": "行動する;を演じる"}, {"n": 242, "en": "performance", "jp": "性能;演技"}, {"n": 243, "en": "species", "jp": "生物の種"}, {"n": 244, "en": "variety", "jp": "多様性;種類"}, {"n": 245, "en": "degree", "jp": "程度;学位"}, {"n": 246, "en": "range", "jp": "範囲"}, {"n": 247, "en": "standard", "jp": "水準;基準"}, {"n": 248, "en": "medium/media", "jp": "媒体"}, {"n": 249, "en": "advantage", "jp": "有利な点"}, {"n": 250, "en": "task", "jp": "任務;仕事"}, {"n": 251, "en": "rest", "jp": "休息;残り"}, {"n": 252, "en": "purpose", "jp": "目的"}, {"n": 253, "en": "feature", "jp": "特徴"}, {"n": 254, "en": "factor", "jp": "要因;要素"}, {"n": 255, "en": "shape", "jp": "形;体調"}, {"n": 256, "en": "image", "jp": "印象;映像"}, {"n": 257, "en": "detail", "jp": "詳細;細部"}, {"n": 258, "en": "character", "jp": "性格;登場人物;文字"}, {"n": 259, "en": "function", "jp": "機能"}, {"n": 260, "en": "structure", "jp": "構造"}, {"n": 261, "en": "ground", "jp": "地面;根拠"}, {"n": 262, "en": "influence", "jp": "影響"}, {"n": 263, "en": "disease", "jp": "病気"}, {"n": 264, "en": "pain", "jp": "痛み"}, {"n": 265, "en": "medicine", "jp": "薬;医学"}, {"n": 266, "en": "death", "jp": "死"}, {"n": 267, "en": "fear", "jp": "恐怖心"}, {"n": 268, "en": "memorize", "jp": "を記憶する"}, {"n": 269, "en": "emotion", "jp": "感情"}, {"n": 270, "en": "movement", "jp": "(政治的)運動;動き"}, {"n": 271, "en": "region", "jp": "地域;領域"}, {"n": 272, "en": "climate", "jp": "気候"}, {"n": 273, "en": "temperature", "jp": "温度;体温"}, {"n": 274, "en": "community", "jp": "地域社会"}, {"n": 275, "en": "population", "jp": "人口"}, {"n": 276, "en": "generation", "jp": "世代"}, {"n": 277, "en": "present", "jp": "現在の;出席して"}, {"n": 278, "en": "recent", "jp": "最近の"}, {"n": 279, "en": "currency", "jp": "通貨"}, {"n": 280, "en": "ancient", "jp": "古代の"}, {"n": 281, "en": "previous", "jp": "前の"}, {"n": 282, "en": "serious", "jp": "深刻な;真剣な"}, {"n": 283, "en": "careful", "jp": "注意深い"}, {"n": 284, "en": "responsibility", "jp": "責任感"}, {"n": 285, "en": "active", "jp": "活動的な"}, {"n": 286, "en": "afraid", "jp": "恐れて"}, {"n": 287, "en": "aware", "jp": "気づいて"}, {"n": 288, "en": "patient", "jp": "我慢強い;患者"}, {"n": 289, "en": "whole", "jp": "全体の"}, {"n": 290, "en": "low", "jp": "低い;値段が安い"}, {"n": 291, "en": "huge", "jp": "巨大な;莫大な"}, {"n": 292, "en": "blank", "jp": "空白の"}, {"n": 293, "en": "central", "jp": "中心的な"}, {"n": 294, "en": "safe", "jp": "安全な"}, {"n": 295, "en": "wild", "jp": "野生の"}, {"n": 296, "en": "eventually", "jp": "結局は;ついには"}, {"n": 297, "en": "unfortunately", "jp": "残念なことに"}, {"n": 298, "en": "seemingly", "jp": "見たところ"}, {"n": 299, "en": "afterward", "jp": "後で"}, {"n": 300, "en": "altogether", "jp": "完全に;全部で"}, {"n": 301, "en": "assume", "jp": "当然…だと思う"}, {"n": 302, "en": "guess", "jp": "…だと思う;推測する"}, {"n": 303, "en": "associate", "jp": "から〜を連想する"}, {"n": 304, "en": "desire", "jp": "を強く望む"}, {"n": 305, "en": "indicate", "jp": "を示す"}, {"n": 306, "en": "respond", "jp": "〜に応答する"}, {"n": 307, "en": "reply", "jp": "〜に返事を出す"}, {"n": 308, "en": "attempt", "jp": "を試みる"}, {"n": 309, "en": "manage", "jp": "をやり遂げる"}, {"n": 310, "en": "maintenance", "jp": "維持;整備"}, {"n": 311, "en": "unite", "jp": "を結合;団結させる"}, {"n": 312, "en": "join", "jp": "に加わる"}, {"n": 313, "en": "attract", "jp": "を引きつける"}, {"n": 314, "en": "match", "jp": "と調和;に匹敵する"}, {"n": 315, "en": "attack", "jp": "を襲う;攻撃する"}, {"n": 316, "en": "seek", "jp": "を探し求める"}, {"n": 317, "en": "engage", "jp": "〜に従事する"}, {"n": 318, "en": "succeed", "jp": "成功する"}, {"n": 319, "en": "marry", "jp": "と結婚する"}, {"n": 320, "en": "attend", "jp": "に出席する"}, {"n": 321, "en": "satisfy", "jp": "を満足させる"}, {"n": 322, "en": "survive", "jp": "生き残る"}, {"n": 323, "en": "promote", "jp": "を促進する"}, {"n": 324, "en": "earn", "jp": "を稼ぐ"}, {"n": 325, "en": "feed", "jp": "に食べ物を与える"}, {"n": 326, "en": "taste", "jp": "〜の味がする"}, {"n": 327, "en": "smell", "jp": "〜のにおいがする"}, {"n": 328, "en": "adapt", "jp": "〜に順応する"}, {"n": 329, "en": "adopt", "jp": "を採用する"}, {"n": 330, "en": "adjust", "jp": "を調節する"}, {"n": 331, "en": "separate", "jp": "を分離する"}, {"n": 332, "en": "exchange", "jp": "を交換する"}, {"n": 333, "en": "replace", "jp": "を取り替える"}, {"n": 334, "en": "remove", "jp": "を取り去る"}, {"n": 335, "en": "release", "jp": "を放出する"}, {"n": 336, "en": "disappear", "jp": "姿を消す"}, {"n": 337, "en": "observe", "jp": "を観察する"}, {"n": 338, "en": "estimate", "jp": "…だと推定する"}, {"n": 339, "en": "reveal", "jp": "を明らかにする"}, {"n": 340, "en": "emerge", "jp": "現れる"}, {"n": 341, "en": "arise", "jp": "(問題が)生じる"}, {"n": 342, "en": "citizen", "jp": "国民;市民"}, {"n": 343, "en": "career", "jp": "経歴;生涯の職業"}, {"n": 344, "en": "income", "jp": "定期収入"}, {"n": 345, "en": "billion", "jp": "10億"}, {"n": 346, "en": "bill", "jp": "請求書;紙幣"}, {"n": 347, "en": "charge", "jp": "料金;請求する"}, {"n": 348, "en": "item", "jp": "品目;項目"}, {"n": 349, "en": "scale", "jp": "規模;尺度"}, {"n": 350, "en": "site", "jp": "場所;用地"}, {"n": 351, "en": "section", "jp": "部門;節"}, {"n": 352, "en": "crop", "jp": "農作物"}, {"n": 353, "en": "diet", "jp": "日常の食事"}, {"n": 354, "en": "source", "jp": "源;出所"}, {"n": 355, "en": "resource", "jp": "資源;資金"}, {"n": 356, "en": "moment", "jp": "瞬間;特定の時点"}, {"n": 357, "en": "decade", "jp": "10年間"}, {"n": 358, "en": "stage", "jp": "段階;舞台"}, {"n": 359, "en": "aspect", "jp": "側面;観点"}, {"n": 360, "en": "sort", "jp": "種類"}, {"n": 361, "en": "instance", "jp": "具体例;場合"}, {"n": 362, "en": "link", "jp": "関連;つながり"}, {"n": 363, "en": "contrast", "jp": "対照;差異"}, {"n": 364, "en": "access", "jp": "利用;入手"}, {"n": 365, "en": "device", "jp": "装置"}, {"n": 366, "en": "survey", "jp": "調査"}, {"n": 367, "en": "technique", "jp": "技術;技巧"}, {"n": 368, "en": "content", "jp": "中身;内容"}, {"n": 369, "en": "surface", "jp": "表面;外見"}, {"n": 370, "en": "concept", "jp": "概念;考え"}, {"n": 371, "en": "difficulty", "jp": "苦労;困難"}, {"n": 372, "en": "trouble", "jp": "困難;悩み"}, {"n": 373, "en": "crime", "jp": "犯罪"}, {"n": 374, "en": "attitude", "jp": "態度;考え方"}, {"n": 375, "en": "habit", "jp": "個人的な習慣;癖"}, {"n": 376, "en": "whatever", "jp": "何を…しても"}, {"n": 377, "en": "urban", "jp": "都市の"}, {"n": 378, "en": "rural", "jp": "田園の;田舎の"}, {"n": 379, "en": "local", "jp": "地元の;その土地の"}, {"n": 380, "en": "native", "jp": "生まれた土地の"}, {"n": 381, "en": "smart", "jp": "頭のよい"}, {"n": 382, "en": "intelligent", "jp": "知能の高い"}, {"n": 383, "en": "intellectual", "jp": "知的な"}, {"n": 384, "en": "potential", "jp": "潜在的な"}, {"n": 385, "en": "moral", "jp": "道徳上の"}, {"n": 386, "en": "private", "jp": "個人的な;私有の"}, {"n": 387, "en": "equality", "jp": "平等"}, {"n": 388, "en": "fair", "jp": "公正な"}, {"n": 389, "en": "entire", "jp": "全体の"}, {"n": 390, "en": "initially", "jp": "初めのうちは"}, {"n": 391, "en": "essential", "jp": "必要不可欠な"}, {"n": 392, "en": "significance", "jp": "重要性"}, {"n": 393, "en": "terrible", "jp": "ひどい;恐ろしい"}, {"n": 394, "en": "digital", "jp": "デジタル方式の"}, {"n": 395, "en": "direct", "jp": "直接の;率直な"}, {"n": 396, "en": "nearly", "jp": "もう少しで;ほとんど"}, {"n": 397, "en": "merely", "jp": "単に"}, {"n": 398, "en": "seldom", "jp": "めったに…ない"}, {"n": 399, "en": "lately", "jp": "最近"}, {"n": 400, "en": "apart", "jp": "離れて;別々に"}];
+
+const $ = id => document.getElementById(id);
+const RANGES=[
+  {id:'r1',label:'1–100',from:1,to:100},
+  {id:'r2',label:'101–200',from:101,to:200},
+  {id:'r3',label:'201–300',from:201,to:300},
+  {id:'r4',label:'301–400',from:301,to:400},
+  {id:'all',label:'全部 (400)',from:1,to:400},
+];
+let rangeId='r1';
+function buildChips(){
+  const box=$('rangeChips'); box.innerHTML='';
+  RANGES.forEach(r=>{
+    const b=document.createElement('button');
+    b.className='chip'+(rangeId===r.id?' on':'');
+    b.textContent=r.label;
+    b.onclick=()=>{ rangeId=r.id; buildChips(); resetList();
+if(!('speechSynthesis' in window)){
+  $('pWord').textContent='この環境では音声を再生できません';
+  $('pJp').textContent='SafariかChromeで開いてください';
+} };
+    box.appendChild(b);
+  });
+}
+
+let list=[], idx=0, playing=false, token=0;
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+function resetList(){
+  stop();
+  const r=RANGES.find(x=>x.id===rangeId);
+  list=WORDS.filter(w=>w.n>=r.from&&w.n<=r.to);
+  if($('order').value==='shuf') shuffle(list);
+  idx=0; renderIdle();
+}
+function renderIdle(){
+  $('pNum').textContent='No.–';
+  $('pWord').innerHTML='▶ を押してスタート<span class="speaking-dot"></span>';
+  $('pJp').textContent='英語 → 日本語の順に読み上げます';
+  $('pJp').classList.remove('hidden-mean');
+  $('pBar').style.width='0%';
+  $('pCount').textContent='– / '+list.length;
+}
+
+/* ---- voices ---- */
+let enVoice=null, jaVoice=null;
+function pickVoices(){
+  const vs=speechSynthesis.getVoices();
+  enVoice = vs.find(v=>/^en(-|_)?(US|GB)/i.test(v.lang)&&/female|samantha|karen|zira|aria|jenny/i.test(v.name))
+         || vs.find(v=>/^en/i.test(v.lang)) || null;
+  jaVoice = vs.find(v=>/^ja/i.test(v.lang)&&/kyoko|nanami|haruka|o-?ren/i.test(v.name))
+         || vs.find(v=>/^ja/i.test(v.lang)) || null;
+}
+speechSynthesis.onvoiceschanged = pickVoices;
+pickVoices();
+
+const utterRefs=[];               /* iOSのGCバグ対策: 参照を保持 */
+let resumeTimer=null;
+function keepAlive(){                 /* iOSは長い発話中に勝手にpauseすることがある */
+  clearInterval(resumeTimer);
+  resumeTimer=setInterval(()=>{ try{ if(speechSynthesis.speaking) speechSynthesis.resume(); }catch(e){} }, 3000);
+}
+function speak(text, lang, rateMul=1){
+  return new Promise(res=>{
+    if(!('speechSynthesis' in window)){ res(); return; }
+    pickVoices();                     /* iOSはvoiceschangedが発火しないため毎回取得 */
+    const u=new SpeechSynthesisUtterance(text);
+    u.lang = lang;
+    u.rate = parseFloat($('rate').value) * rateMul;
+    u.volume = 1;
+    if(lang.startsWith('en') && enVoice) u.voice=enVoice;
+    if(lang.startsWith('ja') && jaVoice) u.voice=jaVoice;
+    let done=false;
+    const finish=()=>{ if(!done){ done=true; res(); } };
+    u.onend=finish; u.onerror=finish;
+    /* onendが来ないiOSバグへの保険: 文字数から最大時間を見積もって強制次へ */
+    const est = 1200 + text.length * 260 / u.rate;
+    setTimeout(finish, Math.min(est, 15000));
+    utterRefs.push(u); if(utterRefs.length>20) utterRefs.shift();
+    speechSynthesis.speak(u);
+    keepAlive();
+  });
+}
+let unlocked=false;
+function unlockAudio(){               /* iOSは最初のタップ内で一度鳴らして解錠する必要がある */
+  if(unlocked || !('speechSynthesis' in window)) return;
+  try{
+    speechSynthesis.cancel();
+    const u=new SpeechSynthesisUtterance(' ');
+    u.volume=0; speechSynthesis.speak(u); speechSynthesis.resume();
+  }catch(e){}
+  unlocked=true;
+}
+const wait = ms => new Promise(r=>setTimeout(r, ms));
+
+/* 意味の読み上げ用に記号をやわらかく */
+function jpForSpeech(w){
+  return w.jp.replace(/;/g,'、').replace(/…/g,'なになに').replace(/〜/g,'なになに')
+             .replace(/\(/g,'、').replace(/\)/g,'、');
+}
+function enForSpeech(w){ return w.en.replace('/',' , or , '); }
+
+async function playWord(w, myToken){
+  const pat=$('pattern').value;
+  $('pNum').textContent='No.'+w.n;
+  $('pCount').textContent=(idx+1)+' / '+list.length;
+  $('pBar').style.width=((idx+1)/list.length*100)+'%';
+  $('player').classList.add('speaking');
+
+  const showBoth=()=>{ $('pWord').innerHTML=w.en+'<span class="speaking-dot"></span>'; $('pJp').textContent=w.jp; $('pJp').classList.remove('hidden-mean'); };
+
+  if(pat==='e2j'){
+    showBoth();
+    await speak(enForSpeech(w),'en-US'); if(token!==myToken)return;
+    await wait(250);
+    await speak(enForSpeech(w),'en-US',0.85); if(token!==myToken)return;
+    await wait(250);
+    await speak(jpForSpeech(w),'ja-JP'); if(token!==myToken)return;
+    await wait(500);
+  }else if(pat==='ej'){
+    showBoth();
+    await speak(enForSpeech(w),'en-US'); if(token!==myToken)return;
+    await wait(200);
+    await speak(jpForSpeech(w),'ja-JP'); if(token!==myToken)return;
+    await wait(350);
+  }else if(pat==='e_j'){
+    $('pWord').innerHTML=w.en+'<span class="speaking-dot"></span>';
+    $('pJp').textContent=w.jp; $('pJp').classList.add('hidden-mean');
+    await speak(enForSpeech(w),'en-US'); if(token!==myToken)return;
+    await wait(2300); if(token!==myToken)return;      /* 考える時間 */
+    $('pJp').classList.remove('hidden-mean');
+    await speak(jpForSpeech(w),'ja-JP'); if(token!==myToken)return;
+    await wait(500);
+  }else{ /* j_e */
+    $('pWord').innerHTML='???<span class="speaking-dot"></span>';
+    $('pJp').textContent=w.jp; $('pJp').classList.remove('hidden-mean');
+    await speak(jpForSpeech(w),'ja-JP'); if(token!==myToken)return;
+    await wait(2600); if(token!==myToken)return;
+    $('pWord').innerHTML=w.en+'<span class="speaking-dot"></span>';
+    await speak(enForSpeech(w),'en-US'); if(token!==myToken)return;
+    await wait(500);
+  }
+  $('player').classList.remove('speaking');
+}
+
+async function playLoop(){
+  const myToken=++token;
+  playing=true; $('playBtn').textContent='⏸';
+  while(playing && token===myToken){
+    await playWord(list[idx], myToken);
+    if(!playing || token!==myToken) break;
+    if(idx<list.length-1) idx++;
+    else if($('loop').value==='1'){ idx=0; if($('order').value==='shuf') shuffle(list); }
+    else { stop(); $('pWord').innerHTML='🎉 一周おつかれさま!<span class="speaking-dot"></span>'; $('pJp').textContent='もう一周する?範囲を変える?'; break; }
+  }
+}
+function stop(){
+  playing=false; token++;
+  clearInterval(resumeTimer);
+  try{ speechSynthesis.cancel(); }catch(e){}
+  $('playBtn').textContent='▶';
+  $('player').classList.remove('speaking');
+}
+
+$('playBtn').onclick=()=>{ unlockAudio(); playing? stop() : playLoop(); };
+$('nextBtn').onclick=()=>{ unlockAudio(); const was=playing; stop(); if(idx<list.length-1)idx++; else idx=0; was? playLoop(): (playWordPreview()); };
+$('prevBtn').onclick=()=>{ unlockAudio(); const was=playing; stop(); if(idx>0)idx--; else idx=list.length-1; was? playLoop(): (playWordPreview()); };
+function playWordPreview(){ const w=list[idx]; $('pNum').textContent='No.'+w.n; $('pWord').innerHTML=w.en+'<span class="speaking-dot"></span>'; $('pJp').textContent=w.jp; $('pJp').classList.remove('hidden-mean'); $('pCount').textContent=(idx+1)+' / '+list.length; $('pBar').style.width=((idx+1)/list.length*100)+'%'; }
+$('order').onchange=resetList;
+$('rate').oninput=()=>$('rateLabel').textContent=parseFloat($('rate').value).toFixed(1);
+
+buildChips(); resetList();
+if(!('speechSynthesis' in window)){
+  $('pWord').textContent='この環境では音声を再生できません';
+  $('pJp').textContent='SafariかChromeで開いてください';
+}
+</script>
+</body>
+</html>
